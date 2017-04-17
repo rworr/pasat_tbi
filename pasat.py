@@ -8,23 +8,23 @@ isi = 0.6
 dim = 128
 number_keys = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN', 'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN']
 
-number_vocab = spa.Vocabulary(dim)
+vocab = spa.Vocabulary(dim)
 added_keys = []
 summed_keys = []
 
 for num in number_keys:
-    number_vocab.parse(num)
+    vocab.parse(num)
 
 for i in range(0, 9):
     for j in range(i, 9):
         ni = number_keys[i]
         nj = number_keys[j]
-        number_vocab.add(ni+nj, number_vocab.parse("%s * %s" % (ni, nj)))
+        vocab.add(ni+nj, vocab.parse("%s * %s" % (ni, nj)))
         added_keys.append(ni+nj)
         summed_keys.append(number_keys[i+j+1])
 
-number_vocab.parse('POS1')
-pos_next = number_vocab.add('POSN', number_vocab.create_pointer(unitary=True))
+vocab.parse('POS1')
+pos_next = vocab.add('POSN', vocab.create_pointer(unitary=True))
 
 current_input = '0'
 def number_input(t):
@@ -58,8 +58,8 @@ with spa.SPA('AdditionMemory', seed=1) as model:
     model.inp = spa.Input(number_in=number_input, position=position)
     
     # addition associative memory
-    model.assoc_mem = spa.AssociativeMemory(input_vocab=number_vocab,
-                                            output_vocab=number_vocab,
+    model.assoc_mem = spa.AssociativeMemory(input_vocab=vocab,
+                                            output_vocab=vocab,
                                             input_keys=added_keys,
                                             output_keys=summed_keys,
                                             wta_output=True,
@@ -72,34 +72,34 @@ with spa.SPA('AdditionMemory', seed=1) as model:
                               feedback=1.0, feedback_synapse=0.1)
 
     # WTA memories to pull out 2 most recent items
-    model.number_one = spa.AssociativeMemory(input_vocab=number_vocab,
-                                             output_vocab=number_vocab,
-                                             input_keys=number_keys,
-                                             output_keys=number_keys,
-                                             wta_output=True,
-                                             wta_synapse=0.005,
-                                             threshold=0.3)
+    model.one_am = spa.AssociativeMemory(input_vocab=vocab,
+                                         output_vocab=vocab,
+                                         input_keys=number_keys,
+                                         output_keys=number_keys,
+                                         wta_output=True,
+                                         wta_synapse=0.005,
+                                         threshold=0.3)
                                              
-    model.number_two = spa.AssociativeMemory(input_vocab=number_vocab,
-                                             output_vocab=number_vocab,
-                                             input_keys=number_keys,
-                                             output_keys=number_keys,
-                                             wta_output=True,
-                                             wta_synapse=0.005,
-                                             threshold=0.3)
+    model.two_am = spa.AssociativeMemory(input_vocab=vocab,
+                                         output_vocab=vocab,
+                                         input_keys=number_keys,
+                                         output_keys=number_keys,
+                                         wta_output=True,
+                                         wta_synapse=0.005,
+                                         threshold=0.3)
 
-    model.number_buf = spa.State(dimensions=dim)
+    model.enc_number = spa.State(dimensions=dim)
     model.memory_buf = spa.State(dimensions=dim)
     model.prev_position = spa.State(dimensions=dim)
     
     cortical_actions = spa.Actions(
         'seq_mem = number_in * position',
-        'number_one = seq_mem * ~position',
-        'number_buf = number_one * position',
-        'memory_buf = seq_mem - number_buf',
+        'one_am = seq_mem * ~position',
+        'enc_number = one_am * position',
+        'memory_buf = seq_mem - enc_number',
         'prev_position = position * ~POSN',
-        'number_two = memory_buf * ~prev_position',
-        'assoc_mem = number_one * number_two',
+        'two_am = memory_buf * ~prev_position',
+        'assoc_mem = one_am * two_am'
     )
     
     model.cortical = spa.Cortical(cortical_actions)
