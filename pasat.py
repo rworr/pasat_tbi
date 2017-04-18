@@ -4,7 +4,7 @@ from nengo import spa
 
 from nengo.networks.assoc_mem import AssociativeMemory as AssocMem
 
-isi = 0.6
+isi = 1.0
 dim = 128
 number_keys = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN', 'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN']
 single_digit = number_keys[0:9]
@@ -35,22 +35,16 @@ def number_input(t):
     isi_t = (t % isi)
     if isi_t < 0.002:
         current_input = single_digit[np.random.randint(0, 9)]
-    elif (int(t // isi) == 0):
-        return current_input
-    elif isi_t <= 0.2:
+    else:
         return current_input
     return '0'
     
 def control(t):
-    init = (int(t // isi) == 0)
+    if int(t // isi) == 0:
+        return 'INPUT'
     if (t % isi) <= 0.2:
         return 'INPUT'
-    elif (t % isi) <= 0.4:
-        return 'WAIT'
-    elif (t % isi) <= 0.6:
-        if not init:
-            return 'ANSWER'
-    return 'WAIT'
+    return '0'
 
 def position(t):
     result = 'POS1'
@@ -113,6 +107,25 @@ with spa.SPA('AdditionMemory', seed=1) as model:
     model.prev_position = spa.State(dimensions=dim)
     model.memory_inp = spa.State(dimensions=dim)
 
+    model.one_magnitude = spa.State(1)
+    model.two_magnitude = spa.State(1)
+    model.output_magnitude = spa.State(1)
+    
+    nengo.Connection(model.one_am.am.elem_output,
+                     model.one_magnitude.input,
+                     transform=np.ones((1, model.one_am.am.elem_output.size_out)),
+                     synapse=0.005)
+                     
+    nengo.Connection(model.two_am.am.elem_output,
+                     model.two_magnitude.input,
+                     transform=np.ones((1, model.two_am.am.elem_output.size_out)),
+                     synapse=0.005)
+                     
+    nengo.Connection(model.output.am.elem_output,
+                     model.output_magnitude.input,
+                     transform=np.ones((1, model.output.am.elem_output.size_out)),
+                     synapse=0.005)
+
     cortical_actions = spa.Actions(
         'prev_position = position * ~POSN',
         #'recency_memory = memory_inp',
@@ -127,10 +140,12 @@ with spa.SPA('AdditionMemory', seed=1) as model:
     model.cortical = spa.Cortical(cortical_actions)
     
     actions = spa.Actions(
-        'dot(control, WAIT) --> memory_inp = 0',
         'dot(control, INPUT) --> memory_inp = number_in*position',
-        'dot(control, RECALL) --> memory_inp = one_am*position',
-        'dot(control, ANSWER) --> memory_inp = assoc_mem',
+        '1.5 - one_magnitude --> memory_inp = number_in*position',
+        'one_magnitude + two_magnitude - 1 --> memory_inp = assoc_mem',
+        'output_magnitude --> memory_inp = 0',
     )
     model.bg = spa.BasalGanglia(actions)
     model.thal = spa.Thalamus(model.bg)
+    
+        
