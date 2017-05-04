@@ -87,7 +87,7 @@ with spa.SPA('Indexing', vocabs=[vocab]) as model:
     prev_probes = [prev1_probe, prev2_probe, prev3_probe, prev4_probe, prev5_probe]
 
 with nengo.Simulator(model) as sim:
-    sim.run(61)
+    sim.run(6.1)
 t = sim.trange()
 
 probe_data = [sim.data[probe] for probe in probes]
