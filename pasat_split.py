@@ -3,6 +3,7 @@ import numpy as np
 
 from nengo import spa
 from nengo.networks import CircularConvolution, InputGatedMemory
+from helpers import output_similarities_to_file as dump
 
 dim = 64
 isi = 0.8
@@ -98,4 +99,12 @@ with spa.SPA('Indexing', vocabs=[vocab]) as model:
     nengo.Connection(model.previous.output, model.cconv.B)
     nengo.Connection(model.cconv.output, model.addition.input)
 
+    input_probe = nengo.Probe(model.input.output, synapse=0.03, label="input")
+    current_probe = nengo.Probe(model.current.output, synapse=0.03, label="current")
+    previous_probe = nengo.Probe(model.previous.output, synapse=0.03, label="previous")
+    addition_probe = nengo.Probe(model.addition.output, synapse=0.03, label="addition")
 
+with nengo.Simulator(model) as sim:
+    sim.run(48.8)
+
+dump(sim, vocab)
