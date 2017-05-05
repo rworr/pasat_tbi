@@ -5,7 +5,9 @@ from nengo import spa
 
 from nengo.networks import InputGatedMemory
 
-dim = 512
+from helpers import output_similarities_to_file as dump
+
+dim = 64
 isi = 1.0
 
 vocab = spa.Vocabulary(dim)
@@ -36,15 +38,14 @@ with spa.SPA('Indexing', vocabs=[vocab]) as model:
     model.position = spa.State(dim)
     model.inp = spa.Input(position=pos)
     
-    model.current = InputGatedMemory(800, dim)
-    model.next = InputGatedMemory(800, dim)
+    model.current = InputGatedMemory(2000, dim)
+    model.next = InputGatedMemory(2000, dim)
     model.prev1 = spa.State(dim)
     model.prev2 = spa.State(dim)
     model.prev3 = spa.State(dim)
     model.prev4 = spa.State(dim)
     model.prev5 = spa.State(dim)
-    
-    model.current_input = spa.State(dim)
+
     model.next_input = spa.State(dim)
     model.current_output = spa.State(dim)
     model.next_output = spa.State(dim)
@@ -52,18 +53,13 @@ with spa.SPA('Indexing', vocabs=[vocab]) as model:
 
     nengo.Connection(model.clock, model.current.gate)
     nengo.Connection(model.inv_clock, model.next.gate)
-    
-    nengo.Connection(model.current_input.output, model.current.input)
+
     nengo.Connection(model.next_input.output, model.next.input)
     nengo.Connection(model.current.output, model.current_output.input)
     nengo.Connection(model.next.output, model.next_output.input)
     
-    actions = spa.Actions(
-        'dot(position, POS1) --> current_input = position',
-        '0.7 --> current_input = next_output',
-    )
-    model.bg = spa.BasalGanglia(actions)
-    model.thal = spa.Thalamus(model.bg)
+    nengo.Connection(model.current.input, model.position.output)
+    nengo.Connection(model.current.input, model.next.output)
     
     cortical_actions = spa.Actions(
         'next_input = current_output * NEXT',
@@ -83,29 +79,12 @@ with spa.SPA('Indexing', vocabs=[vocab]) as model:
     prev4_probe = nengo.Probe(model.prev4.output, synapse=0.03, label="prev4")
     prev5_probe = nengo.Probe(model.prev5.output, synapse=0.03, label="prev5")
 
-    probes = [current_probe, next_probe]
     prev_probes = [prev1_probe, prev2_probe, prev3_probe, prev4_probe, prev5_probe]
 
 with nengo.Simulator(model) as sim:
     sim.run(6.1)
-t = sim.trange()
 
-probe_data = [sim.data[probe] for probe in probes]
-probe_sim = [spa.similarity(data, vocab) for data in probe_data]
-
-with open('sim_data.csv', 'w') as outfile:
-    outfile.write("t," + ','.join(["%s,%s_mag" % (p.label, p.label) for p in probes]) + '\n')
-    for i in range(0, len(t)):
-        max_idx = [np.argmax(psim[i]) for psim in probe_sim]
-        line = ','.join(["%s,%f" % (vocab.keys[max_idx[idx]], probe_sim[idx][i][max_idx[idx]])
-                         for idx in range(0, len(probes))])
-        outfile.write("%f,%s\n" % (t[i], line))
-
-for p in range(0, len(probes)):
-    with open('%s.csv' % probes[p].label, 'w') as outfile:
-        outfile.write('t,' + ','.join(vocab.keys) + '\n')
-        for i in range(0, len(t)):
-            outfile.write(str(t[i]) + ',' + ','.join([str(s) for s in probe_sim[p][i]]) + '\n')
+dump(sim, vocab)
 
 with open('prev_sim.csv', 'w') as outfile:
     outfile.write("t,%s\n" % ','.join([p.label for p in prev_probes]))
