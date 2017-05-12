@@ -7,15 +7,15 @@ from nengo.networks import InputGatedMemory
 
 from helpers import output_similarities_to_file as dump
 
-dim = 64
+dim = 128
 isi = 1.0
 
 vocab = spa.Vocabulary(dim)
-vocab.parse('POS1')
-vocab.add('NEXT', vocab.create_pointer(unitary=True))
+vocab.add('POS', vocab.create_pointer(unitary=True))
+vocab.add('POS2', vocab.parse('POS * POS'))
 
-for i in range(2, 61):
-    vocab.add('POS%d' % i, vocab.parse('POS%d * NEXT' % (i-1)))
+for i in range(3, 61):
+    vocab.add('POS%d' % i, vocab.parse('POS%d * POS' % (i-1)))
 
 def inv_clock(t):
     if (t % isi) < 0.4:
@@ -29,7 +29,7 @@ def clock(t):
 
 def pos(t):
     if t < 1.0:
-        return 'POS1'
+        return 'POS'
     return '0'
 
 with spa.SPA('Indexing', vocabs=[vocab]) as model:
@@ -38,8 +38,8 @@ with spa.SPA('Indexing', vocabs=[vocab]) as model:
     model.position = spa.State(dim)
     model.inp = spa.Input(position=pos)
     
-    model.current = InputGatedMemory(2000, dim)
-    model.next = InputGatedMemory(2000, dim)
+    model.current = InputGatedMemory(5000, dim)
+    model.next = InputGatedMemory(5000, dim)
     model.prev1 = spa.State(dim)
     model.prev2 = spa.State(dim)
     model.prev3 = spa.State(dim)
@@ -58,16 +58,16 @@ with spa.SPA('Indexing', vocabs=[vocab]) as model:
     nengo.Connection(model.current.output, model.current_output.input)
     nengo.Connection(model.next.output, model.next_output.input)
     
-    nengo.Connection(model.current.input, model.position.output)
-    nengo.Connection(model.current.input, model.next.output)
+    nengo.Connection(model.position.output, model.current.input)
+    nengo.Connection(model.next.output, model.current.input)
     
     cortical_actions = spa.Actions(
-        'next_input = current_output * NEXT',
-        'prev1 = current_output * ~NEXT',
-        'prev2 = prev1 * ~NEXT',
-        'prev3 = prev2 * ~NEXT',
-        'prev4 = prev3 * ~NEXT',
-        'prev5 = prev4 * ~NEXT',
+        'next_input = current_output * POS',
+        'prev1 = current_output * ~POS',
+        'prev2 = prev1 * ~POS',
+        'prev3 = prev2 * ~POS',
+        'prev4 = prev3 * ~POS',
+        'prev5 = prev4 * ~POS',
     )
     model.cortical = spa.Cortical(cortical_actions)
 
@@ -82,7 +82,8 @@ with spa.SPA('Indexing', vocabs=[vocab]) as model:
     prev_probes = [prev1_probe, prev2_probe, prev3_probe, prev4_probe, prev5_probe]
 
 with nengo.Simulator(model) as sim:
-    sim.run(6.1)
+    sim.run(30)
+t = sim.trange()
 
 dump(sim, vocab)
 
