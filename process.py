@@ -40,8 +40,6 @@ with open("sim_data.csv", 'r') as datafile:
             if (t % 1.0) > 0.0041 and (t % 1.0) < 0.0059:
                 previous_input = current_input
                 current_input = input
-                print t
-                print previous_input, current_input
                 if previous_input != "" and current_input != "":
                     add_num = numbers[current_input] + numbers[previous_input]
                     addition_output = [key for key, value in numbers.items() if value == add_num][0]

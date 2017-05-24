@@ -108,15 +108,15 @@ with spa.SPA("pasat", vocabs=[vocab], seed=1) as model:
     nengo.Connection(model.updated_in.output, model.updated.input)
     nengo.Connection(model.updated.output, model.updated_out.input)
 
-    model.prev_position = spa.State(dim)
+    model.prev_pos = spa.State(dim)
     
     x = 1/np.sqrt(2)
     cortical = spa.Actions(
-        "updated_in = {0} * number * position + {0} * memory_out".format(x),
-        "memory_in = updated_out",
-        "current = memory_out * ~position",
-        "prev_position = position * ~POS",
-        "previous = memory_out * ~prev_position",
+        "updated_in = {0} * number + {0} * memory_out".format(x),
+        "memory_in = updated_out * POS",
+        "current = memory_out * ~POS",
+        "prev_pos = POS * POS",
+        "previous = memory_out * ~prev_pos",
         "addition = current * previous",
     )
     model.cortical = spa.Cortical(cortical)
@@ -129,7 +129,7 @@ with spa.SPA("pasat", vocabs=[vocab], seed=1) as model:
     add_probe = nengo.Probe(model.addition.output, synapse=0.03, label="addition")
 
 with nengo.Simulator(model) as sim:
-    sim.run(30)
+    sim.run(61)
 t = sim.trange()
 
 dump(sim, vocab)
