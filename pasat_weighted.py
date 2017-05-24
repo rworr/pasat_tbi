@@ -9,6 +9,7 @@ from helpers import output_similarities_to_file as dump
 
 isi = 1.0
 delivery_time = 0.4
+answer_time = 0.7
 dim = 64
 number_keys = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN', 'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN']
 single_digit = number_keys[0:9]
@@ -28,7 +29,8 @@ for i in range(0, 9):
         added_keys.append(ni+nj)
         summed_keys.append(number_keys[i+j+1])
 
-vocab.add('POS', vocab.create_pointer(unitary=True))
+vocab.add('CUR', vocab.create_pointer(unitary=True))
+vocab.add('PREV', vocab.parse('CUR * CUR'))
 vocab.parse('ANS')
 
 current_input = '0'
@@ -41,34 +43,21 @@ def number_input(t):
         return current_input
     return '0'
 
-def control(t):
-    if (t < isi) or (t % isi) < delivery_time:
-        return 'INPUT'
-    return 'WAIT'
-
-def position(t):
-    result = 'POS'
-    for i in range(0, int(t // isi)):
-        result += ' * POS'
-    return result
-
-def input_mag(t):
+def updated_clock(t):
     if (t % isi) < delivery_time:
-        return 1
-    return 0
+        return 0
+    return 1
     
-def ninput_mag(t):
-    if (t % isi) < delivery_time:
+def memory_clock(t):
+    if (t % isi) > delivery_time:
         return 0
     return 1
 
 with spa.SPA("pasat", vocabs=[vocab], seed=1) as model:
-    model.position = spa.State(dim)
-    model.control = spa.State(dim)
     model.number = spa.State(dim)
-    model.clock1 = nengo.Node(input_mag)
-    model.clock2 = nengo.Node(ninput_mag)
-    model.inp = spa.Input(position=position, control=control, number=number_input)
+    model.updated_clock = nengo.Node(updated_clock)
+    model.memory_clock = nengo.Node(memory_clock)
+    model.inp = spa.Input(number=number_input)
 
     # addition memory
     model.addition = spa.AssociativeMemory(input_vocab=vocab,
@@ -107,26 +96,31 @@ with spa.SPA("pasat", vocabs=[vocab], seed=1) as model:
     model.updated_out = spa.State(dim)
     nengo.Connection(model.updated_in.output, model.updated.input)
     nengo.Connection(model.updated.output, model.updated_out.input)
-
-    model.prev_pos = spa.State(dim)
     
-    x = 1/np.sqrt(2)
+    model.recall = spa.State(dim)
+
+    n = 2
+    x = 1.0/np.sqrt(n)
+    y = np.sqrt(1.0 - (1.0/n))
+
     cortical = spa.Actions(
-        "updated_in = {0} * number + {0} * memory_out".format(x),
-        "memory_in = updated_out * POS",
-        "current = memory_out * ~POS",
-        "prev_pos = POS * POS",
-        "previous = memory_out * ~prev_pos",
+        "updated_in = {0} * number * CUR + {1} * memory_out * CUR".format(x, y),
+        "memory_in = {0} * updated_out + {1} * addition * ANS".format(x, y),
+        "current = updated_out * ~CUR",
+        "previous = updated_out * ~PREV",
         "addition = current * previous",
+        "recall = memory_out * ~ANS",
     )
+
     model.cortical = spa.Cortical(cortical)
-    nengo.Connection(model.clock2, model.updated.gate)
-    nengo.Connection(model.clock1, model.memory.gate)
+    nengo.Connection(model.updated_clock, model.updated.gate)
+    nengo.Connection(model.memory_clock, model.memory.gate)
 
     input_probe = nengo.Probe(model.number.output, synapse=0.03, label="input")
     cur_probe = nengo.Probe(model.current.output, synapse=0.03, label="current")
     prev_probe = nengo.Probe(model.previous.output, synapse=0.03, label="previous")
     add_probe = nengo.Probe(model.addition.output, synapse=0.03, label="addition")
+    recall_probe = nengo.Probe(model.recall.output, synapse=0.03, label="recall")
 
 with nengo.Simulator(model) as sim:
     sim.run(61)
