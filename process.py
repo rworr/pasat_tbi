@@ -20,7 +20,7 @@ numbers = {"ONE":1,
 with open("sim_data.csv", 'r') as datafile:
     with open("correct.csv", 'w') as outfile:
         headers = datafile.readline()
-        outfile.write("t,current,current_mag,previous,previous_mag,addition,addition_mag\n")
+        outfile.write("t,current,current_mag,previous,previous_mag,addition,addition_mag,recall,recall_mag\n")
         current_input = ""
         previous_input = ""
         addition_output = ""
@@ -36,6 +36,8 @@ with open("sim_data.csv", 'r') as datafile:
             previous_mag = float(data[6])
             addition = data[7]
             addition_mag = float(data[8])
+            recall = data[9]
+            recall_mag = float(data[10])
 
             if (t % 1.0) > 0.0041 and (t % 1.0) < 0.0059:
                 previous_input = current_input
@@ -57,5 +59,9 @@ with open("sim_data.csv", 'r') as datafile:
             add_mag = 0
             if addition == addition_output:
                 add_mag = addition_mag
+
+            rec_mag = 0
+            if recall == addition_output:
+                rec_mag = recall_mag
             
-            outfile.write("%f,%s,%f,%s,%f,%s,%f\n" % (t, current_input, cur_mag, previous_input, prev_mag, addition_output, add_mag))
+            outfile.write("%f,%s,%f,%s,%f,%s,%f,%s,%f\n" % (t, current_input, cur_mag, previous_input, prev_mag, addition_output, add_mag, addition_output, rec_mag))

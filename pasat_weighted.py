@@ -53,7 +53,7 @@ def memory_clock(t):
         return 0
     return 1
 
-with spa.SPA("pasat", vocabs=[vocab], seed=1) as model:
+with spa.SPA("pasat", vocabs=[vocab]) as model:
     model.number = spa.State(dim)
     model.updated_clock = nengo.Node(updated_clock)
     model.memory_clock = nengo.Node(memory_clock)
@@ -99,13 +99,13 @@ with spa.SPA("pasat", vocabs=[vocab], seed=1) as model:
     
     model.recall = spa.State(dim)
 
-    n = 2
+    n = 3
     x = 1.0/np.sqrt(n)
     y = np.sqrt(1.0 - (1.0/n))
 
     cortical = spa.Actions(
         "updated_in = {0} * number * CUR + {1} * memory_out * CUR".format(x, y),
-        "memory_in = {0} * updated_out + {1} * addition * ANS".format(x, y),
+        "memory_in = {0} * addition * ANS + {1} * updated_out".format(x, y),
         "current = updated_out * ~CUR",
         "previous = updated_out * ~PREV",
         "addition = current * previous",
@@ -123,7 +123,7 @@ with spa.SPA("pasat", vocabs=[vocab], seed=1) as model:
     recall_probe = nengo.Probe(model.recall.output, synapse=0.03, label="recall")
 
 with nengo.Simulator(model) as sim:
-    sim.run(61)
+    sim.run(6)
 t = sim.trange()
 
 dump(sim, vocab)
