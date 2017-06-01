@@ -3,6 +3,7 @@ import numpy as np
 from nengo import spa
 
 from workingmem import WorkingMemory
+from transforms import working_memory_transforms as wm_transforms
 from helpers import output_similarities_to_file as dump
 
 seed = 4
@@ -53,36 +54,20 @@ with spa.SPA("ideal", vocabs=[vocab], seed=seed) as ideal:
     conns = ideal.mem.connections
     e_conns = [n.connections for n in ideal.mem.networks]
 
+np.random.seed(seed)
 with nengo.Simulator(ideal, seed=seed) as sim:
     sim.run(10)
 
 dump(sim, vocab, "ideal")
 
-decoders = [sim.data[c].weights for c in conns]
-e_decoders = [[sim.data[c].weights for c in nc] for nc in e_conns]
-
-#for i in range(0, len(decoders)):
-#    di = decoders[i]
-#    if di.shape != ():
-#        decoders[i] = di + np.random.normal(0.0, 0.05*abs(di.max()), di.shape)
-
-for e in range(0, len(e_decoders)):
-    for c in range(0, len(e_decoders[e])):
-        cd = e_decoders[e][c]
-        s = cd.shape
-        fd = cd.flatten(order='C')
-        m = abs(fd.max())
-        for i in range(0, len(fd)):
-            if np.random.random() <= 0.4:
-                fd[i] = fd[i] + np.random.normal(0.0, 0.05*m)
-        e_decoders[e][c] = fd.reshape(s, order='C')
+wm_decoders, ens_decoders = wm_transforms(ideal.mem, sim, 0.4, 0.05)
 
 with spa.SPA("damaged", vocabs=[vocab], seed=seed) as model:
     model.number = spa.State(dimensions)
     model.clock = nengo.Node(memory_clock)
     model.inp = spa.Input(number=number_input)
     
-    model.mem = WorkingMemory(2000, dimensions, transforms=decoders, ens_transforms=e_decoders)
+    model.mem = WorkingMemory(2000, dimensions, transforms=wm_decoders, ens_transforms=ens_decoders)
     nengo.Connection(model.clock, model.mem.gate)
     model.out = spa.State(dimensions)
     
@@ -95,6 +80,7 @@ with spa.SPA("damaged", vocabs=[vocab], seed=seed) as model:
     input_p = nengo.Probe(model.number.output, synapse=0.03, label="input")
     output_p = nengo.Probe(model.out.output, synapse=0.03, label="output")
 
+np.random.seed(seed)
 with nengo.Simulator(model, seed=seed) as sim:
     sim.run(10)
 
