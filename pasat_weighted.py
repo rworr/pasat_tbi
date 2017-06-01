@@ -2,8 +2,7 @@ import nengo
 import numpy as np
 from nengo import spa
 
-from nengo.networks import InputGatedMemory as WorkingMem
-from nengo.networks.assoc_mem import AssociativeMemory as AssocMem
+from workingmem import WorkingMemory
 
 from helpers import output_similarities_to_file as dump
 
@@ -85,18 +84,8 @@ with spa.SPA("pasat", vocabs=[vocab]) as model:
                                          wta_synapse=0.005,
                                          threshold=0.2)
     
-    model.memory = WorkingMem(2000, dim)
-    model.memory_in = spa.State(dim)
-    model.memory_out = spa.State(dim)
-    nengo.Connection(model.memory_in.output, model.memory.input)
-    nengo.Connection(model.memory.output, model.memory_out.input)
-    
-    model.updated = WorkingMem(2000, dim)
-    model.updated_in = spa.State(dim)
-    model.updated_out = spa.State(dim)
-    nengo.Connection(model.updated_in.output, model.updated.input)
-    nengo.Connection(model.updated.output, model.updated_out.input)
-    
+    model.memory = WorkingMemory(2000, dim)
+    model.updated = WorkingMemory(2000, dim)
     model.recall = spa.State(dim)
 
     n = 3
@@ -104,12 +93,12 @@ with spa.SPA("pasat", vocabs=[vocab]) as model:
     y = np.sqrt(1.0 - (1.0/n))
 
     cortical = spa.Actions(
-        "updated_in = {0} * number * CUR + {1} * memory_out * CUR".format(x, y),
-        "memory_in = {0} * addition * ANS + {1} * updated_out".format(x, y),
-        "current = updated_out * ~CUR",
-        "previous = updated_out * ~PREV",
+        "updated = {0} * number * CUR + {1} * memory * CUR".format(x, y),
+        "memory = {0} * addition * ANS + {1} * updated".format(x, y),
+        "current = updated * ~CUR",
+        "previous = updated * ~PREV",
         "addition = current * previous",
-        "recall = memory_out * ~ANS",
+        "recall = memory * ~ANS",
     )
 
     model.cortical = spa.Cortical(cortical)
@@ -123,7 +112,7 @@ with spa.SPA("pasat", vocabs=[vocab]) as model:
     recall_probe = nengo.Probe(model.recall.output, synapse=0.03, label="recall")
 
 with nengo.Simulator(model) as sim:
-    sim.run(6)
+    sim.run(61)
 t = sim.trange()
 
 dump(sim, vocab)
