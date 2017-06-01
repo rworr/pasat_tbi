@@ -3,10 +3,10 @@ import numpy as np
 from nengo import spa
 import matplotlib.pyplot as plt
 
-from nengo.networks.assoc_mem import AssociativeMemory as AssocMem
+from helpers import output_similarities_to_file as dump
 
 isi = 0.4
-dim = 512
+dim = 64
 number_keys = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN', 'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN']
 
 number_vocab = spa.Vocabulary(dim)
@@ -48,11 +48,11 @@ def number_input2(t):
         return current_input2
     return '0'
 
-with spa.SPA('AdditionMemory', seed=1) as model:
+with spa.SPA('AdditionMemory', vocabs=[vocab], seed=1) as model:
     # input
-    model.number_in = spa.State(dimensions=dim)
-    model.number_in2 = spa.State(dimensions=dim)
-    model.inp = spa.Input(number_in=number_input, number_in2=number_input2)
+    model.number_one = spa.State(dimensions=dim)
+    model.number_two = spa.State(dimensions=dim)
+    model.inp = spa.Input(number_one=number_input, number_two=number_input2)
     
     # addition associative memory
     model.assoc_mem = spa.AssociativeMemory(input_vocab=vocab,
@@ -81,8 +81,8 @@ with spa.SPA('AdditionMemory', seed=1) as model:
                                          threshold=0.3)
     
     cortical_actions = spa.Actions(
-        'one_am = number_in',
-        'two_am = number_in2',
+        'one_am = number_one',
+        'two_am = number_two',
         'assoc_mem = one_am * two_am'
     )
     
@@ -96,43 +96,4 @@ with nengo.Simulator(model) as sim:
     sim.run(0.8)
 t = sim.trange()
 
-
-# Output all data to file
-one_data = sim.data[one_probe]
-two_data = sim.data[two_probe]
-add_data = sim.data[add_probe]
-
-one_sim = spa.similarity(one_data, number_vocab)
-two_sim = spa.similarity(two_data, number_vocab)
-add_sim = spa.similarity(add_data, number_vocab)
-
-with open('output.csv', 'w') as outfile:
-    outfile.write("t,one,one_val,two,two_val,add,add_val\n")
-    for i in range(0, len(one_sim)):
-        one_max = np.argmax(one_sim[i])
-        two_max = np.argmax(two_sim[i])
-        add_max = np.argmax(add_sim[i])
-        outfile.write("%f,%s,%f,%s,%f,%s,%f,\n" % (
-                      i*0.001,
-                      number_vocab.keys[one_max], one_sim[i][one_max],
-                      number_vocab.keys[two_max], two_sim[i][two_max],
-                      number_vocab.keys[add_max], add_sim[i][add_max],
-                     ))
-
-with open('one.csv', 'w') as outfile:
-    header = 't,' + ','.join(number_vocab.keys) + '\n'
-    outfile.write(header)
-    for i in range(0, len(one_sim)):
-        outfile.write(str(i * 0.001) + ',' + ','.join([str(s) for s in one_sim[i]]) + '\n')
-
-with open('two.csv', 'w') as outfile:
-    header = 't,' + ','.join(number_vocab.keys) + '\n'
-    outfile.write(header)
-    for i in range(0, len(two_sim)):
-        outfile.write(str(i * 0.001) + ',' + ','.join([str(s) for s in two_sim[i]]) + '\n')
-
-with open('add.csv', 'w') as outfile:
-    header = 't,' + ','.join(number_vocab.keys) + '\n'
-    outfile.write(header)
-    for i in range(0, len(add_sim)):
-        outfile.write(str(i * 0.001) + ',' + ','.join([str(s) for s in add_sim[i]]) + '\n')
+dump(sim, vocab)
