@@ -1,9 +1,14 @@
 import numpy as np
 from nengo import spa
 
-def output_similarities_to_file(sim, vocab, prefix=""):
+def output_similarities_to_file(sim, vocab, prefix=None):
     probes = sim.model.probes
     t = sim.trange()
+
+    if prefix is not None:
+        prefix = prefix + '_'
+    else:
+        prefix = ''
 
     probe_data = [sim.data[probe] for probe in probes]
     probe_sim = [spa.similarity(data, vocab) for data in probe_data]
