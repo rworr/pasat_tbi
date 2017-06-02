@@ -17,7 +17,7 @@ numbers = {"ONE":1,
            "SEVENTEEN":17,
            "EIGHTEEN":18}
 
-for prefix in ["ideal", "damaged"]:
+for prefix in ["severe_ideal", "severe_damaged"]:
     with open(prefix + "_sim_data.csv", 'r') as datafile:
         with open(prefix + "_correct.csv", 'w') as outfile:
             headers = datafile.readline()

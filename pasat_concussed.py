@@ -7,6 +7,7 @@ from spa_assoc_mem import AssociativeMemory
 from transforms import associative_memory_transforms as am_transforms, working_memory_transforms as wm_transforms
 from helpers import output_similarities_to_file as dump
 
+file_prefix = "severe_"
 seed = np.random.randint(100)
 damage_pct = 0.1
 
@@ -117,7 +118,7 @@ with spa.SPA("pasat_ideal", vocabs=[vocab], seed=seed) as ideal:
 np.random.seed(seed)
 with nengo.Simulator(ideal, seed=seed) as sim:
     sim.run(61)
-dump(sim, vocab, "ideal")
+dump(sim, vocab, file_prefix+"ideal")
 
 mem_wm_dec, mem_ens_dec = wm_transforms(ideal.memory, sim, 0.44, damage_pct)
 upd_wm_dec, upd_ens_dec = wm_transforms(ideal.updated, sim, 0.44, damage_pct)
@@ -190,4 +191,4 @@ with spa.SPA("pasat_concuss", vocabs=[vocab], seed=seed) as model:
 np.random.seed(seed)
 with nengo.Simulator(model, seed=seed) as sim:
     sim.run(61)
-dump(sim, vocab, "damaged")
+dump(sim, vocab, file_prefix+"damaged")

@@ -7,9 +7,9 @@ from spa_assoc_mem import AssociativeMemory
 from transforms import associative_memory_transforms as am_transforms
 from helpers import output_similarities_to_file as dump
 
-seed = 4
+seed = np.random.randint(100)
 
-isi = 0.4
+isi = 0.5
 dim = 64
 number_keys = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN', 'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN']
 
@@ -78,10 +78,10 @@ with spa.SPA('ideal_addition', vocabs=[vocab], seed=seed) as ideal:
 
 np.random.seed(seed)
 with nengo.Simulator(ideal, seed=seed) as sim:
-    sim.run(0.8)
-dump(sim, vocab, "ideal")
+    sim.run(5.0)
+dump(sim, vocab, "am_ideal")
 
-am_decoders = am_transforms(ideal.assoc_mem.am, sim, 0.4, 0.5)
+am_decoders = am_transforms(ideal.assoc_mem.am, sim, 0.4, 0.05, 0.001)
 
 with spa.SPA('damaged_addition', vocabs=[vocab], seed=seed) as model:
     model.number_one = spa.State(dimensions=dim)
@@ -109,5 +109,5 @@ with spa.SPA('damaged_addition', vocabs=[vocab], seed=seed) as model:
 
 np.random.seed(seed)
 with nengo.Simulator(model, seed=seed) as sim:
-    sim.run(0.8)
-dump(sim, vocab, "damaged")
+    sim.run(5.0)
+dump(sim, vocab, "am_damaged")

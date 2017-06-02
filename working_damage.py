@@ -6,7 +6,7 @@ from workingmem import WorkingMemory
 from transforms import working_memory_transforms as wm_transforms
 from helpers import output_similarities_to_file as dump
 
-seed = 4
+seed = np.random.randint(100)
 
 isi = 1.0
 delivery_time = 0.4
@@ -58,9 +58,9 @@ np.random.seed(seed)
 with nengo.Simulator(ideal, seed=seed) as sim:
     sim.run(10)
 
-dump(sim, vocab, "ideal")
+dump(sim, vocab, "wm_ideal")
 
-wm_decoders, ens_decoders = wm_transforms(ideal.mem, sim, 0.4, 0.05)
+wm_decoders, ens_decoders = wm_transforms(ideal.mem, sim, 0.44, 0.00001, 0.001)
 
 with spa.SPA("damaged", vocabs=[vocab], seed=seed) as model:
     model.number = spa.State(dimensions)
@@ -84,4 +84,4 @@ np.random.seed(seed)
 with nengo.Simulator(model, seed=seed) as sim:
     sim.run(10)
 
-dump(sim, vocab, "damaged")
+dump(sim, vocab, "wm_damaged")
